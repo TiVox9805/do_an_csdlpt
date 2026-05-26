@@ -1,4 +1,4 @@
 scenario,avg_latency_ms,min_latency_ms,max_latency_ms,p95_latency_ms,success_rate,throughput
-Healthy,133.71,90.11,189.43,172.44,100.0,7.48
-Site3 Slow,135.5,89.73,173.62,170.23,100.0,7.38
-Site3 Down,144.12,84.98,209.04,186.4,100.0,6.94
+Healthy,142.65,85.9,235.23,179.57,100.0,7.01
+Site3 Slow,154.98,92.27,302.53,204.75,100.0,6.45
+Site3 Down,161.22,93.17,236.82,190.88,100.0,6.2

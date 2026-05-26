@@ -11,6 +11,8 @@ class QuorumCoordinator:
     def __init__(self, nodes):
 
         self.nodes = nodes
+
+        # Majority quorum
         self.quorum_size = 2
 
     def update_department(
@@ -29,7 +31,11 @@ class QuorumCoordinator:
 
         try:
 
-            futures = []
+            # ============================================
+            # GỬI LOCK SONG SONG
+            # ============================================
+
+            future_map = {}
 
             for node in self.nodes:
 
@@ -39,70 +45,66 @@ class QuorumCoordinator:
                     tx_id
                 )
 
-                futures.append(
-                    (future, node)
-                )
+                future_map[future] = node
 
-            # ==========================================
-            # CHỈ LẤY 2 NODE NHANH NHẤT
-            # ==========================================
+            completed = set()
+
+            # ============================================
+            # CHỜ TỪNG NODE
+            # ============================================
 
             while len(acquired_nodes) < self.quorum_size:
 
-                done, _ = wait(
-                    [f for f, _ in futures],
+                done, not_done = wait(
+                    future_map.keys() - completed,
                     return_when=FIRST_COMPLETED
                 )
 
+                completed.update(done)
+
                 for future in done:
 
-                    for f, node in futures:
+                    node = future_map[future]
 
-                        if f == future:
+                    try:
 
-                            try:
+                        result = future.result()
 
-                                result = future.result(
-                                    timeout=0
-                                )
+                        if result:
 
-                                if result:
+                            acquired_nodes.append(node)
 
-                                    acquired_nodes.append(
-                                        node
-                                    )
+                    except:
+                        pass
 
-                            except:
-                                pass
+                # Không đủ node
+                if len(completed) == len(future_map):
 
-                            futures.remove(
-                                (f, node)
-                            )
-
-                            break
-
-                # Không đủ quorum
-                if len(done) == 0:
                     break
 
-            # ==========================================
-            # KHÔNG ĐỦ QUORUM
-            # ==========================================
+            # ============================================
+            # KHÔNG ĐẠT QUORUM
+            # ============================================
 
             if len(acquired_nodes) < self.quorum_size:
 
                 for node in acquired_nodes:
 
-                    node.release_lock(
-                        user_id,
-                        tx_id
-                    )
+                    try:
+
+                        node.release_lock(
+                            user_id,
+                            tx_id
+                        )
+
+                    except:
+                        pass
 
                 return False
 
-            # ==========================================
-            # UPDATE CHỈ 2 NODE NHANH
-            # ==========================================
+            # ============================================
+            # COMMIT NGAY TRÊN 2 NODE NHANH
+            # ============================================
 
             for node in acquired_nodes:
 
@@ -115,6 +117,7 @@ class QuorumCoordinator:
 
         finally:
 
+            # release locks
             for node in acquired_nodes:
 
                 try:
@@ -127,6 +130,8 @@ class QuorumCoordinator:
                 except:
                     pass
 
+            # QUAN TRỌNG:
+            # không chờ Site3 slow
             executor.shutdown(
                 wait=False
             )

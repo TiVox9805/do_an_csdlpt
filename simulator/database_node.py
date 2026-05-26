@@ -28,11 +28,9 @@ class DatabaseNode:
         self.is_down = False
         self.slow_mode = False
 
-        self.conflict_count = 0
-
-    # =====================================================
+    # ============================================
     # CONNECT
-    # =====================================================
+    # ============================================
 
     def connect(self):
 
@@ -41,13 +39,12 @@ class DatabaseNode:
             port=self.port,
             database=self.database,
             user=self.user,
-            password=self.password,
-            connect_timeout=2
+            password=self.password
         )
 
-    # =====================================================
-    # SLOW NODE SIMULATION
-    # =====================================================
+    # ============================================
+    # DELAY
+    # ============================================
 
     def apply_delay(self):
 
@@ -55,23 +52,21 @@ class DatabaseNode:
 
             time.sleep(0.5)
 
-    # =====================================================
-    # CLEANUP EXPIRED LOCKS
-    # =====================================================
+    # ============================================
+    # CLEANUP LOCKS
+    # ============================================
 
     def cleanup_expired_locks(self):
 
         conn = self.connect()
-
         cur = conn.cursor()
 
         cur.execute(
-            f"""
+            """
             DELETE
             FROM distributed_locks
             WHERE locked_at <
-                  NOW() - INTERVAL
-                  '{self.LOCK_TIMEOUT_SECONDS} seconds'
+                  NOW() - INTERVAL '5 seconds'
             """
         )
 
@@ -80,9 +75,9 @@ class DatabaseNode:
         cur.close()
         conn.close()
 
-    # =====================================================
+    # ============================================
     # ACQUIRE LOCK
-    # =====================================================
+    # ============================================
 
     def acquire_lock(
         self,
@@ -96,12 +91,12 @@ class DatabaseNode:
                 f"{self.name} is DOWN"
             )
 
+        # Delay chỉ ở lock phase
         self.apply_delay()
 
         self.cleanup_expired_locks()
 
         conn = self.connect()
-
         cur = conn.cursor()
 
         try:
@@ -133,8 +128,6 @@ class DatabaseNode:
 
             conn.rollback()
 
-            self.conflict_count += 1
-
             return False
 
         finally:
@@ -142,9 +135,9 @@ class DatabaseNode:
             cur.close()
             conn.close()
 
-    # =====================================================
+    # ============================================
     # RELEASE LOCK
-    # =====================================================
+    # ============================================
 
     def release_lock(
         self,
@@ -157,7 +150,6 @@ class DatabaseNode:
             return
 
         conn = self.connect()
-
         cur = conn.cursor()
 
         cur.execute(
@@ -178,9 +170,9 @@ class DatabaseNode:
         cur.close()
         conn.close()
 
-    # =====================================================
-    # UPDATE PROFILE
-    # =====================================================
+    # ============================================
+    # UPDATE
+    # ============================================
 
     def update_department(
         self,
@@ -194,10 +186,9 @@ class DatabaseNode:
                 f"{self.name} is DOWN"
             )
 
-        self.apply_delay()
+        # KHÔNG DELAY Ở ĐÂY
 
         conn = self.connect()
-
         cur = conn.cursor()
 
         cur.execute(
@@ -217,23 +208,13 @@ class DatabaseNode:
         cur.close()
         conn.close()
 
-    # =====================================================
-    # READ PROFILE
-    # =====================================================
+    # ============================================
+    # READ
+    # ============================================
 
-    def read_profile(
-        self,
-        user_id
-    ):
-
-        if self.is_down:
-
-            raise Exception(
-                f"{self.name} is DOWN"
-            )
+    def read_profile(self, user_id):
 
         conn = self.connect()
-
         cur = conn.cursor()
 
         cur.execute(
